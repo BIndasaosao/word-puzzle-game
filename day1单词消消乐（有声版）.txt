@@ -1,0 +1,367 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>单词趣味消消乐</title>
+<style>
+    :root {
+        --main-bg: #FFF5F5;
+        --container-bg: #FFFFFF;
+        --accent: #FFB3C6;
+        --text: #66462C;
+    }
+
+    body {
+        background: var(--main-bg);
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: 微软雅黑, sans-serif;
+    }
+
+    .game-container {
+        background: var(--container-bg);
+        border-radius: 30px;
+        padding: 30px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        border: 3px solid var(--accent);
+        width: 90%;
+        max-width: 1200px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .title {
+        font-size: 3.2em;
+        color: var(--text);
+        margin: 0 0 20px 0;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .controls {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-bottom: 25px;
+    }
+
+    .difficulty-btn {
+        font-size: 1.2em;
+        padding: 12px 30px;
+        border-radius: 25px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .difficulty-btn.active {
+        background: #FF759F;
+        transform: scale(1.05);
+    }
+
+    #timer {
+        text-align: center;
+        font-size: 2em;
+        color: var(--text);
+        margin: 15px 0;
+    }
+
+    #score {
+        text-align: center;
+        font-size: 1.5em;
+        color: var(--text);
+        margin: 15px 0;
+    }
+
+    .game-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin: 20px 0;
+    }
+
+    .column {
+        background: #FFF0F0;
+        border-radius: 20px;
+        padding: 20px;
+        min-height: 300px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+        align-content: flex-start;
+    }
+
+    .card {
+        font-size: 1.8em;
+        color: var(--text);
+        background: white;
+        border-radius: 20px;
+        padding: 18px 35px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        user-select: none;
+        animation: cardAppear 0.3s ease-out;
+    }
+
+    @keyframes cardAppear {
+        0% { transform: scale(0); }
+        100% { transform: scale(1); }
+    }
+
+    .card.selected {
+        transform: scale(0.95);
+        background: #FFF5F5;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .card.matched {
+        animation: popOut 0.4s forwards;
+    }
+
+    @keyframes popOut {
+        0% { transform: scale(1); opacity: 1 }
+        100% { transform: scale(0); opacity: 0 }
+    }
+
+    .victory-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .victory-card {
+        background: white;
+        padding: 40px 60px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: scaleIn 0.3s ease-out;
+    }
+
+    @keyframes scaleIn {
+        0% { transform: scale(0); }
+        100% { transform: scale(1); }
+    }
+</style>
+</head>
+<body>
+<div class="game-container">
+    <div class="header">
+        <h1 class="title">单词趣味消消乐</h1>
+        <div id="timer">时间: 0秒</div>
+        <div id="score">成功: 0次 错误: 0次</div>
+    </div>
+
+    <div class="controls">
+        <button class="difficulty-btn" data-difficulty="4">青铜</button>
+        <button class="difficulty-btn" data-difficulty="6">钻石</button>
+        <button class="difficulty-btn" data-difficulty="10">王者</button>
+    </div>
+
+    <div class="game-columns">
+        <div class="column" id="english-column"></div>
+        <div class="column" id="chinese-column"></div>
+    </div>
+</div>
+
+<script>
+// 词汇数据配置
+const vocabulary = [
+{word: "watermelon", translation: "n. 西瓜", type: " "},
+{word: "cabbage", translation: "n. 卷心菜", type: " "},
+{word: "mutton", translation: "n. 羊肉", type: " "},
+{word: "cookie", translation: "n. 曲奇饼", type: " "},
+{word: "onion", translation: "n. 洋葱", type: " "},
+{word: "dumpling", translation: "n. 饺子", type: " "},
+{word: "coffee", translation: "n. 咖啡", type: " "},
+{word: "bean", translation: "n. 豆", type: " "},
+{word: "chip", translation: "n. 炸薯条", type: " "},
+{word: "fish and chips", translation: "n. 炸鱼薯条", type: " "},
+{word: "salad", translation: "n. 沙拉", type: " "},
+{word: "porridge", translation: "n. 粥", type: " "},
+{word: "waiter", translation: "n. （男）服务员", type: " "},
+{word: "taste", translation: "v. 有…… 味道；尝 / n. 味道", type: " "},
+{word: "anything", translation: "pron. 某事物；任何事物", type: " "},
+{word: "dish", translation: "n. 一道菜 / n. 盘子 / n. 餐具", type: " "},
+{word: "choice", translation: "n. 选择", type: " "},
+{word: "meal", translation: "n. 一餐所吃的食物 / n. 一餐 / n. 膳食", type: " "},
+{word: "pork", translation: "n. 猪肉", type: " "},
+{word: "strawberry", translation: "n. 草莓", type: " "},
+{word: "menu", translation: "n. 菜单", type: " "},
+{word: "customer", translation: "n. 顾客", type: " "},
+{word: "serve", translation: "v. 提供 / v. 服务 / v. 端上（饭菜等）", type: " "},
+{word: "waitress", translation: "n. 女服务员", type: " "},
+{word: "sir", translation: "n. 先生", type: " "},
+{word: "go with", translation: "ph. 搭配", type: " "},
+{word: "instead", translation: "adv. 反而 / adv. 代替 / adv. 顶替", type: " "},
+{word: "pear", translation: "n. 梨", type: " "},
+{word: "too much", translation: "ph. 太多", type: " "},
+{word: "sugar", translation: "n. 糖", type: " "},
+{word: "improve", translation: "v. 改进；改善", type: " "},
+{word: "habit", translation: "n. 习惯", type: " "},
+{word: "fast food", translation: "n. 快餐", type: " "},
+{word: "salt", translation: "n. 盐", type: " "},
+{word: "fat", translation: "n. 脂肪 / adj. 肥胖的", type: " "},
+{word: "put on", translation: "phv. 增加 / phv. 穿上", type: " "},
+{word: "weight", translation: "n. 体重；重量", type: " "},
+{word: "hamburger", translation: "n. 汉堡包", type: " "},
+{word: "cause", translation: "v. 造成；导致", type: " "},
+{word: "heart", translation: "n. 心脏 / n. 中心", type: " "},
+{word: "balanced", translation: "adj. 均衡的；平衡的", type: " "},
+{word: "too...to", translation: "ph. 太…… 以至于不能", type: " "},
+{word: "sleepy", translation: "adj. 困倦的；想睡的", type: " "},
+{word: "after all", translation: "ph. 毕竟；终归", type: " "},
+{word: "away", translation: "adv. 离开 / adv. 在别处", type: " "},
+{word: "poor", translation: "adj. 不好的 / adj. 贫穷的 / adj. 可怜的", type: " "},
+{word: "result", translation: "n. 后果；结果", type: " "},
+{word: "article", translation: "n. 文章 / n. 冠词", type: " "},
+{word: "common", translation: "adj. 共同的；普遍的", type: " "},
+{word: "among", translation: "prep. 在…… 中；…… 之一", type: " "},
+{word: "soft", translation: "adj. 柔和的；柔软的", type: " "},
+{word: "soft drink", translation: "n. 软饮料（不含酒精）", type: " "},
+{word: "enough", translation: "adj. 足够的；充足的 / adv. 足够地；充分地 / pron. 足够；充分", type: " "},
+{word: "thirsty", translation: "adj. 渴的", type: " "}
+
+];
+
+// 游戏核心逻辑
+let selectedCards = [];
+let successCount = 0;
+let errorCount = 0;
+let totalPairs = 0;
+let startTime = 0;
+let timerInterval;
+
+function initGame(pairCount) {
+    // 重置游戏状态
+    clearInterval(timerInterval);
+    selectedCards = [];
+    successCount = 0;
+    errorCount = 0;
+    totalPairs = pairCount;
+    startTime = Date.now();
+    
+    // 随机选择指定数量的词汇对
+    const selected = shuffle([...vocabulary]).slice(0, pairCount);
+    const pairs = selected.flatMap(item => [
+        {text: `${item.word} ${item.type}`, value: item.word, type: 'en'},
+        {text: item.translation, value: item.word, type: 'cn'}
+    ]);
+    
+    // 生成卡片
+    const shuffledCards = shuffle(pairs);
+    document.getElementById('english-column').innerHTML = 
+        shuffledCards.filter(c => c.type === 'en').map(cardHTML).join('');
+    document.getElementById('chinese-column').innerHTML = 
+        shuffledCards.filter(c => c.type === 'cn').map(cardHTML).join('');
+    
+    // 更新界面
+    updateScore();
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function cardHTML(card) {
+    return `<div class="card" data-value="${card.value}" data-type="${card.type}">${card.text}</div>`;
+}
+
+function handleCardClick(card) {
+    if (card.classList.contains('matched')) return;
+    
+    // 播放单词发音（使用有道发音服务）
+    const word = card.dataset.value;
+    const audio = new Audio(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}`);
+    audio.play().catch(() => console.log('自动播放被阻止'));
+
+    // 选择逻辑
+    card.classList.add('selected');
+    selectedCards.push(card);
+
+    if (selectedCards.length === 2) {
+        setTimeout(checkMatch, 500);
+    }
+}
+
+function checkMatch() {
+    const [first, second] = selectedCards;
+    const isMatch = first.dataset.value === second.dataset.value;
+
+    if (isMatch) {
+        successCount++;
+        selectedCards.forEach(c => c.classList.add('matched'));
+        if (successCount === totalPairs) showVictory();
+    } else {
+        errorCount++;
+        selectedCards.forEach(c => c.classList.remove('selected'));
+    }
+
+    selectedCards = [];
+    updateScore();
+}
+
+function updateScore() {
+    document.getElementById('score').textContent = 
+        `成功: ${successCount}次 错误: ${errorCount}次`;
+}
+
+function updateTimer() {
+    const seconds = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timer').textContent = `时间: ${seconds}秒`;
+}
+
+function showVictory() {
+    clearInterval(timerInterval);
+    const overlay = document.createElement('div');
+    overlay.className = 'victory-overlay';
+    overlay.innerHTML = `
+        <div class="victory-card">
+            <h2>🎉 闯关成功！</h2>
+            <p>用时：${Math.floor((Date.now() - startTime)/1000)}秒</p>
+            <p>正确率：${Math.round(successCount/(successCount+errorCount)*100)}%</p>
+            <button onclick="location.reload()">再来一次</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// 工具函数
+function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+}
+
+// 事件监听
+document.querySelectorAll('.difficulty-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        initGame(parseInt(btn.dataset.difficulty));
+    });
+});
+
+document.querySelector('.game-columns').addEventListener('click', (e) => {
+    if (e.target.classList.contains('card')) {
+        handleCardClick(e.target);
+    }
+});
+
+// 默认开始青铜难度
+document.querySelector('[data-difficulty="4"]').click();
+</script>
+</body>
+</html>
